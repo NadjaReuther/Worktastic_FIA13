@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Worktastic.Data;
 using Worktastic.Models;
@@ -8,16 +8,16 @@ namespace Worktastic.Controllers
     [Authorize]
     public class JobPostingController : Controller
     {
-        private readonly ApplicationDbContext _db;
+        private readonly ApplicationDbContext _context;
 
-        public JobPostingController(ApplicationDbContext db)
+        public JobPostingController(ApplicationDbContext context)
         {
-            _db = db;
+            _context = context;
         }
 
         public IActionResult Index()
         {
-            var posts = _db.JobPosts
+            var posts = _context.JobPosts
                 .Where(p => p.OwnerName == User.Identity!.Name)
                 .ToList();
             return View(posts);
@@ -29,7 +29,7 @@ namespace Worktastic.Controllers
             if (id == 0)
                 return View(new JobPosting());
 
-            var post = _db.JobPosts.Find(id);
+            var post = _context.JobPosts.Find(id);
             if (post == null || post.OwnerName != User.Identity!.Name)
                 return NotFound();
 
@@ -38,45 +38,44 @@ namespace Worktastic.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateEditForm(JobPosting model, IFormFile? CompanyLogo)
+        public async Task<IActionResult> CreateEdit(JobPosting jobPosting, IFormFile? CompanyLogo)
         {
             if (!ModelState.IsValid)
-                return View(model);
+                return View("CreateEditForm", jobPosting);
 
-            byte[]? logoBytes = null;
+            jobPosting.OwnerName = User.Identity!.Name;
+
             if (CompanyLogo != null && CompanyLogo.Length > 0)
             {
                 using var ms = new MemoryStream();
                 await CompanyLogo.CopyToAsync(ms);
-                logoBytes = ms.ToArray();
+                jobPosting.CompanyLogo = ms.ToArray();
             }
 
-            if (model.Id == 0)
+            if (jobPosting.Id == 0)
             {
-                model.OwnerName = User.Identity!.Name;
-                model.CompanyLogo = logoBytes;
-                _db.JobPosts.Add(model);
+                _context.JobPosts.Add(jobPosting);
             }
             else
             {
-                var existing = _db.JobPosts.Find(model.Id);
+                var existing = _context.JobPosts.Find(jobPosting.Id);
                 if (existing == null || existing.OwnerName != User.Identity!.Name)
                     return NotFound();
 
-                existing.JobTitle = model.JobTitle;
-                existing.JobDescription = model.JobDescription;
-                existing.JobLocation = model.JobLocation;
-                existing.StartDate = model.StartDate;
-                existing.Salary = model.Salary;
-                existing.ContactName = model.ContactName;
-                existing.ContactEmail = model.ContactEmail;
-                existing.ContactPhone = model.ContactPhone;
-                existing.ContactWebsite = model.ContactWebsite;
-                if (logoBytes != null)
-                    existing.CompanyLogo = logoBytes;
+                existing.JobTitle = jobPosting.JobTitle;
+                existing.JobDescription = jobPosting.JobDescription;
+                existing.JobLocation = jobPosting.JobLocation;
+                existing.StartDate = jobPosting.StartDate;
+                existing.Salary = jobPosting.Salary;
+                existing.ContactName = jobPosting.ContactName;
+                existing.ContactEmail = jobPosting.ContactEmail;
+                existing.ContactPhone = jobPosting.ContactPhone;
+                existing.ContactWebsite = jobPosting.ContactWebsite;
+                if (jobPosting.CompanyLogo != null)
+                    existing.CompanyLogo = jobPosting.CompanyLogo;
             }
 
-            _db.SaveChanges();
+            _context.SaveChanges();
             return RedirectToAction(nameof(Index));
         }
     }
