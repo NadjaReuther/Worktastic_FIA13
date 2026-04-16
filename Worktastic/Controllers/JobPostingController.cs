@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Worktastic.Data;
 using Worktastic.Models;
 
 namespace Worktastic.Controllers
 {
+    [Authorize]
     public class JobPostingController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -25,6 +27,10 @@ namespace Worktastic.Controllers
                 if (jobFromDb == null)
                 {
                     return NotFound();
+                }
+                if (User.Identity.Name != jobFromDb.OwnerName)
+                {
+                    return Unauthorized();
                 }
                 return View(jobFromDb);
             }
